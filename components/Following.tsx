@@ -45,7 +45,6 @@ export default function Following({ following }: FollowingProps) {
                                         className="object-cover bg-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-12"
                                     />
                                 </div>
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-green-400 to-emerald-500 dark:from-green-500 dark:to-emerald-600 rounded-full border-2 border-white dark:border-gray-900 animate-pulse shadow-lg"></div>
                             </div>
                             <div className="transform transition-all duration-500 group-hover:translate-y-1">
                                 <p className="font-semibold text-base truncate max-w-[140px] bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 dark:group-hover:from-blue-400 dark:group-hover:to-indigo-400 transition-all duration-500">
