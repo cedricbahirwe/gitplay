@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Image from 'next/image';
+import Following from './Following';
 
 interface GitHubCommit {
     message: string;
@@ -30,6 +31,20 @@ interface GitHubUser {
     avatar_url: string;
     type: string;
 }
+
+interface ContributionDay {
+    contributionCount: number;
+    date: string;
+}
+
+interface UserContribution {
+    user: GitHubUser;
+    contributionCount: number;
+    currentStreak: number;
+    contributions: ContributionDay[];
+}
+
+type TabType = 'feed' | 'streaks' | 'digest';
 
 function getEventStyles(type: string) {
     switch (type) {
@@ -94,23 +109,94 @@ export default function Feed() {
         },
     });
 
+    const [activeTab, setActiveTab] = useState<TabType>('feed');
     const [following, setFollowing] = useState<GitHubUser[]>([]);
     const [events, setEvents] = useState<GitHubEvent[]>([]);
+    const [contributions, setContributions] = useState<UserContribution[]>([]);
     const [displayCount, setDisplayCount] = useState(20);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const calculateStreak = useCallback((contributions: ContributionDay[]): number => {
+        let streak = 0;
+        const today = new Date().toISOString().split('T')[0];
+        const sortedDays = [...contributions].sort((a, b) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+
+        for (let i = 0; i < sortedDays.length; i++) {
+            const currentDate = new Date(sortedDays[i].date);
+            const expectedDate = new Date(today);
+            expectedDate.setDate(expectedDate.getDate() - i);
+
+            if (currentDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0]
+                && sortedDays[i].contributionCount > 0) {
+                streak++;
+            } else {
+                break;
+            }
+        }
+
+        return streak;
+    }, []);
+
+    const fetchContributions = useCallback(async (user: GitHubUser, accessToken: string) => {
+        try {
+            const res = await fetch(`https://api.github.com/users/${user.login}/events`, {
+                headers: {
+                    'Authorization': `token ${accessToken}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                }
+            });
+
+            if (!res.ok) return null;
+
+            const events = await res.json();
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.setDate(today.getDate() - 30));
+
+            const contributions = events
+                .filter((event: GitHubEvent) =>
+                    new Date(event.created_at) >= thirtyDaysAgo &&
+                    event.type === 'PushEvent'
+                )
+                .reduce((acc: ContributionDay[], event: GitHubEvent) => {
+                    const date = event.created_at.split('T')[0];
+                    const existing = acc.find(d => d.date === date);
+                    if (existing) {
+                        existing.contributionCount += (event.payload.commits?.length || 0);
+                    } else {
+                        acc.push({ date, contributionCount: event.payload.commits?.length || 0 });
+                    }
+                    return acc;
+                }, []);
+
+            const currentStreak = calculateStreak(contributions);
+            const totalContributions = contributions.reduce((sum: number, day: ContributionDay) =>
+                sum + day.contributionCount, 0
+            );
+
+            return {
+                user,
+                contributionCount: totalContributions,
+                currentStreak,
+                contributions
+            };
+        } catch (error) {
+            console.error(`Error fetching contributions for ${user.login}:`, error);
+            return null;
+        }
+    }, [calculateStreak]);
+
     useEffect(() => {
         let mounted = true;
 
-        if (!session?.accessToken || status !== 'authenticated') {
-            return;
-        }
+        if (!session?.accessToken || status !== 'authenticated') return;
 
         const accessToken = session.accessToken;
 
-        async function fetchData() {
+        async function fetchAllData() {
             try {
                 const followingRes = await fetch('https://api.github.com/user/following', {
                     headers: {
@@ -119,39 +205,35 @@ export default function Feed() {
                     }
                 });
 
-                if (!followingRes.ok) {
-                    throw new Error('Failed to fetch following users');
-                }
+                if (!followingRes.ok) throw new Error('Failed to fetch following users');
 
                 const followingData = await followingRes.json();
                 if (!mounted) return;
-                console.log('Following data:', followingData[7]);
                 setFollowing(followingData);
 
-                const eventsPromises = followingData.map((user: GitHubUser) =>
-                    fetch(`https://api.github.com/users/${user.login}/events`, {
-                        headers: {
-                            'Authorization': `token ${accessToken}`,
-                            'Accept': 'application/vnd.github.v3+json',
-                        }
-                    }).then(res => {
-                        if (!res.ok) {
-                            console.warn(`Failed to fetch events for ${user.login}`);
-                            return [];
-                        }
-                        return res.json();
-                    })
-                );
+                const [eventsData, contributionsData] = await Promise.all([
+                    Promise.all(followingData.map((user: GitHubUser) =>
+                        fetch(`https://api.github.com/users/${user.login}/events`, {
+                            headers: {
+                                'Authorization': `token ${accessToken}`,
+                                'Accept': 'application/vnd.github.v3+json',
+                            }
+                        }).then(res => res.ok ? res.json() : [])
+                    )),
+                    Promise.all(followingData.map((user: GitHubUser) =>
+                        fetchContributions(user, accessToken)
+                    ))
+                ]);
 
-                const allEvents = await Promise.all(eventsPromises);
                 if (!mounted) return;
 
-                const flatEvents = allEvents.flat();
+                const flatEvents = eventsData.flat();
                 const sortedEvents = flatEvents.sort((a, b) =>
                     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
 
                 setEvents(sortedEvents);
+                setContributions(contributionsData.filter(Boolean));
             } catch (err) {
                 if (mounted) {
                     setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -164,19 +246,19 @@ export default function Feed() {
             }
         }
 
-        fetchData();
+        fetchAllData();
 
         return () => {
             mounted = false;
         };
-    }, [session, status]);
+    }, [session, status, fetchContributions]);
 
     const loadMore = () => {
         setLoadingMore(true);
         setTimeout(() => {
             setDisplayCount(prev => prev + 20);
             setLoadingMore(false);
-        }, 500); // Add a small delay for better UX
+        }, 500);
     };
 
     if (status === 'loading' || loading) {
@@ -227,160 +309,316 @@ export default function Feed() {
 
     return (
         <div className="max-w-4xl mx-auto pb-24">
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-6 relative">
-                    <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 dark:from-indigo-400 dark:via-purple-400 dark:to-blue-400 bg-clip-text text-transparent animate-gradient-x">
-                        Following ({following.length})
-                    </span>
-                    <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-full animate-shimmer"></div>
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 p-4">
-                    {following.map((user, index) => (
-                        <a
-                            key={user.login}
-                            href={`https://github.com/${user.login}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group relative overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 transition-all duration-500 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] dark:hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-fade-up"
-                            style={{
-                                animationDelay: `${index * 100}ms`,
-                                transform: 'perspective(1000px)'
-                            }}
-                        >
-                            <div className="flex flex-col items-center text-center space-y-4 relative z-10">
-                                <div className="relative group-hover:rotate-6 transition-transform duration-500">
-                                    <div className="relative w-20 h-20 rounded-xl overflow-hidden ring-2 ring-transparent group-hover:ring-blue-500 transition-all duration-500 group-hover:rounded-[50%] transform group-hover:rotate-12">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
-                                        <Image
-                                            src={user.avatar_url}
-                                            alt={user.login}
-                                            fill
-                                            className="object-cover bg-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-12"
-                                        />
-                                    </div>
-                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-green-400 to-emerald-500 dark:from-green-500 dark:to-emerald-600 rounded-full border-2 border-white dark:border-gray-900 animate-pulse shadow-lg"></div>
-                                </div>
-                                <div className="transform transition-all duration-500 group-hover:translate-y-1">
-                                    <p className="font-semibold text-base truncate max-w-[140px] bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 dark:group-hover:from-blue-400 dark:group-hover:to-indigo-400 transition-all duration-500">
-                                        {user.login}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
-                                        {user.type === 'User' ? 'GitHub Developer' : 'Organization'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Card effects */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 backdrop-blur-3xl"></div>
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <div className="absolute -inset-px bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-500 rounded-2xl opacity-0 group-hover:opacity-30 blur-xl transition-all duration-500 group-hover:duration-200"></div>
-
-                            {/* Interactive corner decorations */}
-                            <div className="absolute top-0 left-0 w-16 h-16 -translate-x-full -translate-y-full group-hover:translate-x-0 group-hover:translate-y-0 bg-gradient-to-br from-blue-500/10 to-transparent transition-transform duration-500"></div>
-                            <div className="absolute bottom-0 right-0 w-16 h-16 translate-x-full translate-y-full group-hover:translate-x-0 group-hover:translate-y-0 bg-gradient-to-tl from-indigo-500/10 to-transparent transition-transform duration-500"></div>
-                        </a>
-                    ))}
+            {/* Tab Navigation */}
+            <div className="sticky top-16 z-40 py-4 mb-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+                <div className="flex justify-center">
+                    <div className="inline-flex rounded-lg border border-gray-100 dark:border-gray-800 p-1 bg-white dark:bg-gray-900 shadow-sm">
+                        {(['feed', 'streaks', 'digest'] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === tab
+                                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
+                            >
+                                {tab === 'feed' && '📱 Feed'}
+                                {tab === 'streaks' && '🔥 Streaks'}
+                                {tab === 'digest' && '📊 Daily Digest'}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            <div>
-                <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-indigo-500 to-blue-500 dark:from-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
-                    Activity Feed
-                </h2>
-                <div className="space-y-4">
-                    {events.slice(0, displayCount).map(event => {
-                        const styles = getEventStyles(event.type);
-                        return (
-                            <div
-                                key={event.id}
-                                className={`p-4 rounded-lg border ${styles.border} ${styles.bg} hover:shadow-md dark:hover:shadow-gray-950 transition-all duration-200 animate-fade-in`}
-                            >
-                                <div className="flex items-start gap-4">
-                                    <div className={`${styles.iconBg} p-2 rounded-full flex-shrink-0`}>
-                                        <span className="text-xl">{styles.icon}</span>
+
+
+            {/* Tab Content */}
+            {activeTab === 'feed' && (
+                <div>
+                    <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-indigo-500 to-blue-500 dark:from-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
+                        Activity Feed
+                    </h2>
+                    <div className="space-y-4">
+                        {events.slice(0, displayCount).map(event => {
+                            const styles = getEventStyles(event.type);
+                            return (
+                                <div
+                                    key={event.id}
+                                    className={`p-4 rounded-lg border ${styles.border} ${styles.bg} hover:shadow-md dark:hover:shadow-gray-950 transition-all duration-200 animate-fade-in`}
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className={`${styles.iconBg} p-2 rounded-full flex-shrink-0`}>
+                                            <span className="text-xl">{styles.icon}</span>
+                                        </div>
+                                        <div className="flex-grow">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Image
+                                                    src={event.actor.avatar_url}
+                                                    alt={event.actor.login}
+                                                    width={24}
+                                                    height={24}
+                                                    className="w-6 h-6 rounded-full"
+                                                />
+                                                <a
+                                                    href={`https://github.com/${event.actor.login}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                >
+                                                    {event.actor.login}
+                                                </a>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="text-gray-600 dark:text-gray-400">{formatEvent(event)}</span>
+                                                {' '}
+                                                <a
+                                                    href={`https://github.com/${event.repo.name}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                >
+                                                    {event.repo.name}
+                                                </a>
+                                            </div>
+                                            {event.type === 'PushEvent' && event.payload.commits && (
+                                                <div className="mt-2 space-y-1">
+                                                    {event.payload.commits.slice(0, 3).map((commit: GitHubCommit, index: number) => (
+                                                        <div key={index} className="text-sm text-gray-600 dark:text-gray-400 pl-4 border-l-2 border-gray-300 dark:border-gray-600">
+                                                            {commit.message.split('\n')[0]}
+                                                        </div>
+                                                    ))}
+                                                    {event.payload.commits.length > 3 && (
+                                                        <div className="text-sm text-gray-500 dark:text-gray-500 pl-4">
+                                                            +{event.payload.commits.length - 3} more commits
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                                {new Date(event.created_at).toLocaleDateString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                })}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex-grow">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Image
-                                                src={event.actor.avatar_url}
-                                                alt={event.actor.login}
-                                                width={24}
-                                                height={24}
-                                                className="w-6 h-6 rounded-full"
-                                            />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {events.length > displayCount && (
+                        <div className="mt-8 flex justify-center">
+                            <button
+                                onClick={loadMore}
+                                disabled={loadingMore}
+                                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-600 dark:to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 dark:hover:from-blue-500 dark:hover:to-indigo-500 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loadingMore ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Loading...
+                                    </>
+                                ) : (
+                                    <>
+                                        View More
+                                        <span className="text-sm opacity-75">
+                                            ({events.length - displayCount} more)
+                                        </span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'streaks' && (
+                <div>
+                    <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-orange-500 to-red-500 dark:from-orange-400 dark:to-red-400 bg-clip-text text-transparent">
+                        Contribution Streaks 🔥
+                    </h2>
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {contributions
+                            .sort((a, b) => b.currentStreak - a.currentStreak)
+                            .map((contribution) => (
+                                <div
+                                    key={contribution.user.login}
+                                    className="p-6 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/30 hover:shadow-lg transition-all duration-200"
+                                >
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <Image
+                                            src={contribution.user.avatar_url}
+                                            alt={contribution.user.login}
+                                            width={40}
+                                            height={40}
+                                            className="rounded-full"
+                                        />
+                                        <div>
                                             <a
-                                                href={`https://github.com/${event.actor.login}`}
+                                                href={`https://github.com/${contribution.user.login}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                className="font-semibold hover:text-blue-600 dark:hover:text-blue-400"
                                             >
-                                                {event.actor.login}
+                                                {contribution.user.login}
                                             </a>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                {contribution.currentStreak} day{contribution.currentStreak !== 1 ? 's' : ''} streak
+                                            </div>
                                         </div>
-                                        <div className="mb-2">
-                                            <span className="text-gray-600 dark:text-gray-400">{formatEvent(event)}</span>
-                                            {' '}
-                                            <a
-                                                href={`https://github.com/${event.repo.name}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                            >
-                                                {event.repo.name}
-                                            </a>
-                                        </div>
-                                        {event.type === 'PushEvent' && event.payload.commits && (
-                                            <div className="mt-2 space-y-1">
-                                                {event.payload.commits.slice(0, 3).map((commit: GitHubCommit, index: number) => (
-                                                    <div key={index} className="text-sm text-gray-600 dark:text-gray-400 pl-4 border-l-2 border-gray-300 dark:border-gray-600">
-                                                        {commit.message.split('\n')[0]}
-                                                    </div>
-                                                ))}
-                                                {event.payload.commits.length > 3 && (
-                                                    <div className="text-sm text-gray-500 dark:text-gray-500 pl-4">
-                                                        +{event.payload.commits.length - 3} more commits
-                                                    </div>
-                                                )}
+                                        {contribution.currentStreak >= 3 && (
+                                            <div className="ml-auto">
+                                                <div className="text-2xl animate-bounce">🔥</div>
                                             </div>
                                         )}
-                                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                                            {new Date(event.created_at).toLocaleDateString('en-US', {
-                                                hour: 'numeric',
-                                                minute: 'numeric',
-                                                month: 'short',
-                                                day: 'numeric'
-                                            })}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600 dark:text-gray-400">
+                                                Total Contributions (30d)
+                                            </span>
+                                            <span className="font-semibold">
+                                                {contribution.contributionCount}
+                                            </span>
+                                        </div>
+                                        <div className="h-2 bg-orange-100 dark:bg-orange-900 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+                                                style={{
+                                                    width: `${Math.min((contribution.currentStreak / 7) * 100, 100)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">
+                                            {contribution.currentStreak}/7 days
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-                {events.length > displayCount && (
-                    <div className="mt-8 flex justify-center">
-                        <button
-                            onClick={loadMore}
-                            disabled={loadingMore}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-600 dark:to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 dark:hover:from-blue-500 dark:hover:to-indigo-500 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loadingMore ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Loading...
-                                </>
-                            ) : (
-                                <>
-                                    View More
-                                    <span className="text-sm opacity-75">
-                                        ({events.length - displayCount} more)
-                                    </span>
-                                </>
-                            )}
-                        </button>
+                            ))}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {activeTab === 'digest' && (
+                <div>
+                    <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-green-500 to-emerald-500 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent">
+                        Daily Digest 📊
+                    </h2>
+
+                    {/* Today's Top Contributor */}
+                    {contributions.length > 0 && (
+                        <div className="mb-8 p-6 rounded-lg border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30">
+                            <h3 className="text-lg font-semibold mb-4 text-green-700 dark:text-green-300">
+                                🏆 Today&apos;s Top Contributor
+                            </h3>
+                            {(() => {
+                                const topContributor = contributions.reduce((prev, current) =>
+                                    (current.currentStreak > prev.currentStreak) ? current : prev
+                                );
+                                return (
+                                    <div className="flex items-center gap-4">
+                                        <Image
+                                            src={topContributor.user.avatar_url}
+                                            alt={topContributor.user.login}
+                                            width={48}
+                                            height={48}
+                                            className="rounded-full ring-4 ring-green-400 dark:ring-green-500"
+                                        />
+                                        <div>
+                                            <a
+                                                href={`https://github.com/${topContributor.user.login}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-semibold hover:text-blue-600 dark:hover:text-blue-400"
+                                            >
+                                                {topContributor.user.login}
+                                            </a>
+                                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                                                {topContributor.contributionCount} contributions in the last 30 days
+                                            </div>
+                                            <div className="text-sm text-green-600 dark:text-green-400">
+                                                🔥 {topContributor.currentStreak} day streak!
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    {/* Today's Activity Summary */}
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <div className="p-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30">
+                            <h3 className="text-lg font-semibold mb-4 text-blue-700 dark:text-blue-300">
+                                📱 Today&apos;s Activity
+                            </h3>
+                            {(() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                const todayEvents = events.filter(event =>
+                                    event.created_at.split('T')[0] === today
+                                );
+
+                                const summary = {
+                                    commits: todayEvents.filter(e => e.type === 'PushEvent').length,
+                                    stars: todayEvents.filter(e => e.type === 'WatchEvent').length,
+                                    prs: todayEvents.filter(e => e.type === 'PullRequestEvent').length,
+                                    issues: todayEvents.filter(e => e.type === 'IssuesEvent').length,
+                                };
+
+                                return (
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <span>🚀 Pushes</span>
+                                            <span className="font-semibold">{summary.commits}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span>⭐ Stars</span>
+                                            <span className="font-semibold">{summary.stars}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span>🔄 Pull Requests</span>
+                                            <span className="font-semibold">{summary.prs}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span>🎫 Issues</span>
+                                            <span className="font-semibold">{summary.issues}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="p-6 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/30">
+                            <h3 className="text-lg font-semibold mb-4 text-purple-700 dark:text-purple-300">
+                                ⚡ Quick Stats
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span>👥 Following</span>
+                                    <span className="font-semibold">{following.length}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>🔥 Active Streaks</span>
+                                    <span className="font-semibold">
+                                        {contributions.filter(c => c.currentStreak > 0).length}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>📊 Avg. Daily Activity</span>
+                                    <span className="font-semibold">
+                                        {Math.round(events.length / 30)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <Following following={following} />
         </div>
     );
 }
