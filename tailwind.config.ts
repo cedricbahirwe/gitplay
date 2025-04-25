@@ -13,6 +13,9 @@ const config: Config = {
 				"fade-up": "fadeUp 0.5s ease-out forwards",
 				"gradient-x": "gradient-x 3s ease infinite",
 				shimmer: "shimmer 2s linear infinite",
+				"spin-slow": "spin 3s linear infinite",
+				"spin-slower": "spin 6s linear infinite",
+				"glow": "glow 2s ease-in-out infinite alternate",
 			},
 			keyframes: {
 				fadeIn: {
@@ -45,6 +48,16 @@ const config: Config = {
 					},
 					"100%": {
 						"background-position": "200% 0",
+					},
+				 },
+				glow: {
+					"0%": {
+						opacity: "0.4",
+						transform: "scale(0.98)",
+					},
+					"100%": {
+						opacity: "1",
+						transform: "scale(1.02)",
 					},
 				},
 			},
