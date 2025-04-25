@@ -95,7 +95,7 @@ export default function Feed() {
 
     const [following, setFollowing] = useState<GitHubUser[]>([]);
     const [events, setEvents] = useState<GitHubEvent[]>([]);
-    const [displayCount, setDisplayCount] = useState(50);
+    const [displayCount, setDisplayCount] = useState(20);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -172,7 +172,7 @@ export default function Feed() {
     const loadMore = () => {
         setLoadingMore(true);
         setTimeout(() => {
-            setDisplayCount(prev => prev + 50);
+            setDisplayCount(prev => prev + 20);
             setLoadingMore(false);
         }, 500); // Add a small delay for better UX
     };
@@ -224,7 +224,7 @@ export default function Feed() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto pb-24">
             <div className="mb-8">
                 <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-500 to-blue-500 dark:from-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
                     Following ({following.length})
