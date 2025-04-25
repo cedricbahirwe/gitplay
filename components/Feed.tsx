@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
+import Image from 'next/image';
 
 interface GitHubCommit {
     message: string;
@@ -239,9 +240,11 @@ export default function Feed() {
                                 className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-800 transition-all duration-200 group min-w-max"
                             >
                                 <div className="relative">
-                                    <img
+                                    <Image
                                         src={user.avatar_url}
                                         alt={user.login}
+                                        width={32}
+                                        height={32}
                                         className="w-8 h-8 rounded-full group-hover:ring-2 ring-blue-400 dark:ring-blue-500 transition-all duration-200"
                                     />
                                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 dark:bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
@@ -271,9 +274,11 @@ export default function Feed() {
                                     </div>
                                     <div className="flex-grow">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <img
+                                            <Image
                                                 src={event.actor.avatar_url}
                                                 alt={event.actor.login}
+                                                width={24}
+                                                height={24}
                                                 className="w-6 h-6 rounded-full"
                                             />
                                             <a
