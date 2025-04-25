@@ -28,6 +28,7 @@ interface GitHubEvent {
 interface GitHubUser {
     login: string;
     avatar_url: string;
+    type: string;
 }
 
 function getEventStyles(type: string) {
@@ -124,6 +125,7 @@ export default function Feed() {
 
                 const followingData = await followingRes.json();
                 if (!mounted) return;
+                console.log('Following data:', followingData[7]);
                 setFollowing(followingData);
 
                 const eventsPromises = followingData.map((user: GitHubUser) =>
@@ -226,33 +228,58 @@ export default function Feed() {
     return (
         <div className="max-w-4xl mx-auto pb-24">
             <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-500 to-blue-500 dark:from-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
-                    Following ({following.length})
+                <h2 className="text-2xl font-bold mb-6 relative">
+                    <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 dark:from-indigo-400 dark:via-purple-400 dark:to-blue-400 bg-clip-text text-transparent animate-gradient-x">
+                        Following ({following.length})
+                    </span>
+                    <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-full animate-shimmer"></div>
                 </h2>
-                <div className="overflow-x-auto pb-4 scrollbar-hide">
-                    <div className="flex gap-3">
-                        {following.map(user => (
-                            <a
-                                key={user.login}
-                                href={`https://github.com/${user.login}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-800 transition-all duration-200 group min-w-max"
-                            >
-                                <div className="relative">
-                                    <Image
-                                        src={user.avatar_url}
-                                        alt={user.login}
-                                        width={32}
-                                        height={32}
-                                        className="w-8 h-8 rounded-full group-hover:ring-2 ring-blue-400 dark:ring-blue-500 transition-all duration-200"
-                                    />
-                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 dark:bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 p-4">
+                    {following.map((user, index) => (
+                        <a
+                            key={user.login}
+                            href={`https://github.com/${user.login}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 transition-all duration-500 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] dark:hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] animate-fade-up"
+                            style={{
+                                animationDelay: `${index * 100}ms`,
+                                transform: 'perspective(1000px)'
+                            }}
+                        >
+                            <div className="flex flex-col items-center text-center space-y-4 relative z-10">
+                                <div className="relative group-hover:rotate-6 transition-transform duration-500">
+                                    <div className="relative w-20 h-20 rounded-xl overflow-hidden ring-2 ring-transparent group-hover:ring-blue-500 transition-all duration-500 group-hover:rounded-[50%] transform group-hover:rotate-12">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                                        <Image
+                                            src={user.avatar_url}
+                                            alt={user.login}
+                                            fill
+                                            className="object-cover bg-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-12"
+                                        />
+                                    </div>
+                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-green-400 to-emerald-500 dark:from-green-500 dark:to-emerald-600 rounded-full border-2 border-white dark:border-gray-900 animate-pulse shadow-lg"></div>
                                 </div>
-                                <span className="text-sm font-medium">{user.login}</span>
-                            </a>
-                        ))}
-                    </div>
+                                <div className="transform transition-all duration-500 group-hover:translate-y-1">
+                                    <p className="font-semibold text-base truncate max-w-[140px] bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 dark:group-hover:from-blue-400 dark:group-hover:to-indigo-400 transition-all duration-500">
+                                        {user.login}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+                                        {user.type === 'User' ? 'GitHub Developer' : 'Organization'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Card effects */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 backdrop-blur-3xl"></div>
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="absolute -inset-px bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-500 rounded-2xl opacity-0 group-hover:opacity-30 blur-xl transition-all duration-500 group-hover:duration-200"></div>
+
+                            {/* Interactive corner decorations */}
+                            <div className="absolute top-0 left-0 w-16 h-16 -translate-x-full -translate-y-full group-hover:translate-x-0 group-hover:translate-y-0 bg-gradient-to-br from-blue-500/10 to-transparent transition-transform duration-500"></div>
+                            <div className="absolute bottom-0 right-0 w-16 h-16 translate-x-full translate-y-full group-hover:translate-x-0 group-hover:translate-y-0 bg-gradient-to-tl from-indigo-500/10 to-transparent transition-transform duration-500"></div>
+                        </a>
+                    ))}
                 </div>
             </div>
 
