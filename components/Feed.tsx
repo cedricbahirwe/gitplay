@@ -33,53 +33,53 @@ function getEventStyles(type: string) {
     switch (type) {
         case 'PushEvent':
             return {
-                bg: 'bg-blue-50',
-                border: 'border-blue-200',
+                bg: 'bg-blue-50 dark:bg-blue-950/50',
+                border: 'border-blue-200 dark:border-blue-800',
                 icon: '🚀',
-                iconBg: 'bg-blue-100'
+                iconBg: 'bg-blue-100 dark:bg-blue-900/50'
             };
         case 'WatchEvent':
             return {
-                bg: 'bg-yellow-50',
-                border: 'border-yellow-200',
+                bg: 'bg-yellow-50 dark:bg-yellow-950/50',
+                border: 'border-yellow-200 dark:border-yellow-800',
                 icon: '⭐',
-                iconBg: 'bg-yellow-100'
+                iconBg: 'bg-yellow-100 dark:bg-yellow-900/50'
             };
         case 'CreateEvent':
             return {
-                bg: 'bg-green-50',
-                border: 'border-green-200',
+                bg: 'bg-green-50 dark:bg-green-950/50',
+                border: 'border-green-200 dark:border-green-800',
                 icon: '📂',
-                iconBg: 'bg-green-100'
+                iconBg: 'bg-green-100 dark:bg-green-900/50'
             };
         case 'ForkEvent':
             return {
-                bg: 'bg-purple-50',
-                border: 'border-purple-200',
+                bg: 'bg-purple-50 dark:bg-purple-950/50',
+                border: 'border-purple-200 dark:border-purple-800',
                 icon: '🔱',
-                iconBg: 'bg-purple-100'
+                iconBg: 'bg-purple-100 dark:bg-purple-900/50'
             };
         case 'IssueEvent':
         case 'IssuesEvent':
             return {
-                bg: 'bg-red-50',
-                border: 'border-red-200',
+                bg: 'bg-red-50 dark:bg-red-950/50',
+                border: 'border-red-200 dark:border-red-800',
                 icon: '🎫',
-                iconBg: 'bg-red-100'
+                iconBg: 'bg-red-100 dark:bg-red-900/50'
             };
         case 'PullRequestEvent':
             return {
-                bg: 'bg-indigo-50',
-                border: 'border-indigo-200',
+                bg: 'bg-indigo-50 dark:bg-indigo-950/50',
+                border: 'border-indigo-200 dark:border-indigo-800',
                 icon: '🔄',
-                iconBg: 'bg-indigo-100'
+                iconBg: 'bg-indigo-100 dark:bg-indigo-900/50'
             };
         default:
             return {
-                bg: 'bg-gray-50',
-                border: 'border-gray-200',
+                bg: 'bg-gray-50 dark:bg-gray-800/50',
+                border: 'border-gray-200 dark:border-gray-700',
                 icon: '📌',
-                iconBg: 'bg-gray-100'
+                iconBg: 'bg-gray-100 dark:bg-gray-800'
             };
     }
 }
@@ -225,7 +225,7 @@ export default function Feed() {
     return (
         <div className="max-w-4xl mx-auto">
             <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-500 to-blue-500 dark:from-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
                     Following ({following.length})
                 </h2>
                 <div className="overflow-x-auto pb-4 scrollbar-hide">
@@ -236,15 +236,15 @@ export default function Feed() {
                                 href={`https://github.com/${user.login}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 border border-gray-100 transition-all duration-200 group min-w-max"
+                                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-800 transition-all duration-200 group min-w-max"
                             >
                                 <div className="relative">
                                     <img
                                         src={user.avatar_url}
                                         alt={user.login}
-                                        className="w-8 h-8 rounded-full group-hover:ring-2 ring-blue-400 transition-all duration-200"
+                                        className="w-8 h-8 rounded-full group-hover:ring-2 ring-blue-400 dark:ring-blue-500 transition-all duration-200"
                                     />
-                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 dark:bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
                                 </div>
                                 <span className="text-sm font-medium">{user.login}</span>
                             </a>
@@ -254,7 +254,7 @@ export default function Feed() {
             </div>
 
             <div>
-                <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-indigo-500 to-blue-500 dark:from-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
                     Activity Feed
                 </h2>
                 <div className="space-y-4">
@@ -263,7 +263,7 @@ export default function Feed() {
                         return (
                             <div
                                 key={event.id}
-                                className={`p-4 rounded-lg border ${styles.border} ${styles.bg} hover:shadow-md transition-all duration-200 animate-fade-in`}
+                                className={`p-4 rounded-lg border ${styles.border} ${styles.bg} hover:shadow-md dark:hover:shadow-gray-950 transition-all duration-200 animate-fade-in`}
                             >
                                 <div className="flex items-start gap-4">
                                     <div className={`${styles.iconBg} p-2 rounded-full flex-shrink-0`}>
@@ -280,19 +280,19 @@ export default function Feed() {
                                                 href={`https://github.com/${event.actor.login}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="font-semibold hover:text-blue-600 transition-colors"
+                                                className="font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                             >
                                                 {event.actor.login}
                                             </a>
                                         </div>
                                         <div className="mb-2">
-                                            <span className="text-gray-600">{formatEvent(event)}</span>
+                                            <span className="text-gray-600 dark:text-gray-400">{formatEvent(event)}</span>
                                             {' '}
                                             <a
                                                 href={`https://github.com/${event.repo.name}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="font-medium hover:text-blue-600 transition-colors"
+                                                className="font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                             >
                                                 {event.repo.name}
                                             </a>
@@ -300,18 +300,18 @@ export default function Feed() {
                                         {event.type === 'PushEvent' && event.payload.commits && (
                                             <div className="mt-2 space-y-1">
                                                 {event.payload.commits.slice(0, 3).map((commit: GitHubCommit, index: number) => (
-                                                    <div key={index} className="text-sm text-gray-600 pl-4 border-l-2 border-gray-300">
+                                                    <div key={index} className="text-sm text-gray-600 dark:text-gray-400 pl-4 border-l-2 border-gray-300 dark:border-gray-600">
                                                         {commit.message.split('\n')[0]}
                                                     </div>
                                                 ))}
                                                 {event.payload.commits.length > 3 && (
-                                                    <div className="text-sm text-gray-500 pl-4">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-500 pl-4">
                                                         +{event.payload.commits.length - 3} more commits
                                                     </div>
                                                 )}
                                             </div>
                                         )}
-                                        <div className="text-xs text-gray-500 mt-2">
+                                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                                             {new Date(event.created_at).toLocaleDateString('en-US', {
                                                 hour: 'numeric',
                                                 minute: 'numeric',
@@ -330,7 +330,7 @@ export default function Feed() {
                         <button
                             onClick={loadMore}
                             disabled={loadingMore}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-600 dark:to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 dark:hover:from-blue-500 dark:hover:to-indigo-500 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loadingMore ? (
                                 <>
