@@ -119,7 +119,7 @@ export default function Feed() {
     return (
         <div className="max-w-4xl mx-auto pb-24">
             {/* Tab Navigation */}
-            <div className="sticky top-16 z-40 py-4 mb-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+            <div className="sticky top-15 z-40 py-4 mb-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
                 <div className="flex justify-center">
                     <div className="inline-flex rounded-lg border border-gray-100 dark:border-gray-800 p-1 bg-white dark:bg-gray-900 shadow-sm">
                         {(['feed', 'streaks', 'digest'] as const).map((tab) => (
