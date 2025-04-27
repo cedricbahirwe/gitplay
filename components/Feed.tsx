@@ -143,7 +143,8 @@ export default function Feed() {
 
     const fetchContributions = useCallback(async (user: GitHubUser, accessToken: string) => {
         try {
-            const res = await fetch(`https://api.github.com/users/${user.login}/events`, {
+            const pathName = user.type === 'User' ? `users` : `orgs`;
+            const res = await fetch(`https://api.github.com/${pathName}/${user.login}/events`, {
                 headers: {
                     'Authorization': `token ${accessToken}`,
                     'Accept': 'application/vnd.github.v3+json',
@@ -213,7 +214,8 @@ export default function Feed() {
 
                 const [eventsData, contributionsData] = await Promise.all([
                     Promise.all(followingData.map((user: GitHubUser) =>
-                        fetch(`https://api.github.com/users/${user.login}/events`, {
+
+                        fetch(`https://api.github.com/${user.type === 'User' ? `users` : `orgs`}/${user.login}/events`, {
                             headers: {
                                 'Authorization': `token ${accessToken}`,
                                 'Accept': 'application/vnd.github.v3+json',
@@ -266,26 +268,26 @@ export default function Feed() {
             <div className="flex flex-col justify-center items-center h-64 relative">
                 {/* Outer glow effects */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-glow"></div>
-                
+
                 {/* Primary spinner */}
                 <div className="relative w-24 h-24">
                     {/* Spinning rings */}
                     <div className="absolute inset-0 rounded-full border-8 border-blue-500/30 border-t-blue-500 animate-spin"></div>
                     <div className="absolute inset-0 rounded-full border-8 border-indigo-500/30 border-r-indigo-500 animate-spin-slow"></div>
                     <div className="absolute inset-0 rounded-full border-8 border-purple-500/30 border-b-purple-500 animate-spin-slower"></div>
-                    
+
                     {/* Pulsing center */}
                     <div className="absolute inset-[12px] rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 animate-pulse shadow-lg"></div>
-                    
+
                     {/* Shimmering overlay */}
                     <div className="absolute inset-[12px] rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
                 </div>
-                
+
                 {/* Background effects */}
                 <div className="absolute w-40 h-40 bg-blue-500/10 rounded-full blur-2xl animate-pulse"></div>
                 <div className="absolute w-32 h-32 bg-indigo-500/10 rounded-full blur-xl animate-glow"></div>
                 <div className="absolute w-24 h-24 bg-purple-500/10 rounded-full blur-lg animate-pulse"></div>
-                
+
                 {/* Loading text */}
                 <div className="mt-12 text-base font-medium bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
                     Loading your GitHub feed...
