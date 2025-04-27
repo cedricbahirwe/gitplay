@@ -72,6 +72,11 @@ export default function Feed() {
         }, 500);
     };
 
+    const handleTabChange = (tab: TabType) => {
+        setActiveTab(tab);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     // Memoized calculations for the digest tab
     const todaysSummary = useMemo(() => {
         if (!githubService || !events.length) return null;
@@ -90,7 +95,6 @@ export default function Feed() {
     if (status === 'loading' || loading) {
         return (
             <div className="flex flex-col justify-center items-center h-64 relative">
-                {/* ...existing loading UI... */}
                 <div className="mt-12 text-base font-medium bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
                     Loading your GitHub feed...
                 </div>
@@ -121,10 +125,10 @@ export default function Feed() {
                         {(['feed', 'streaks', 'digest'] as const).map((tab) => (
                             <button
                                 key={tab}
-                                onClick={() => setActiveTab(tab)}
+                                onClick={() => handleTabChange(tab)}
                                 className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === tab
-                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                                     }`}
                             >
                                 {tab === 'feed' && '📱 Feed'}
