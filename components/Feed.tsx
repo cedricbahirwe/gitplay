@@ -52,7 +52,7 @@ export default function Feed() {
     // Fetch events and contributions
     const fetchEventsAndContributions = useCallback(async () => {
         if (!githubService || !following.length) return;
-        
+
         try {
             const [eventsData, contributionsData] = await Promise.all([
                 githubService.getMultipleUsersEvents(following),
@@ -69,7 +69,7 @@ export default function Feed() {
     // Load more following
     const loadMoreFollowing = async () => {
         if (!githubService || !hasMoreFollowing || loadingMoreFollowing) return;
-        
+
         setLoadingMoreFollowing(true);
         try {
             const response = await githubService.getFollowingPaginated(currentFollowingPage);
@@ -173,11 +173,10 @@ export default function Feed() {
                             <button
                                 key={tab}
                                 onClick={() => handleTabChange(tab)}
-                                className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                                    activeTab === tab
-                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                                }`}
+                                className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === tab
+                                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                    }`}
                             >
                                 {tab === 'feed' && '📱 Feed'}
                                 {tab === 'streaks' && '🔥 Streaks'}
@@ -191,7 +190,7 @@ export default function Feed() {
 
             {/* Tab Content */}
             {activeTab === 'feed' && (
-                <ActivityFeed 
+                <ActivityFeed
                     events={events}
                     displayCount={displayCount}
                     loadMore={loadMore}
@@ -213,7 +212,7 @@ export default function Feed() {
             )}
 
             {activeTab === 'following' && (
-                <Following 
+                <Following
                     following={following}
                     hasMore={hasMoreFollowing}
                     loadMore={loadMoreFollowing}
