@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GitPlay
+
+A modern social dashboard for GitHub that helps you stay connected with your network's development activities. Built with Next.js, TypeScript, and Tailwind CSS.
+
+## Features
+
+-   📱 **Activity Feed** - Real-time updates of GitHub activities from people you follow
+-   🔥 **Contribution Streaks** - Track and compare coding streaks with your network
+-   📊 **Daily Digest** - Get insights into your network's daily GitHub activities
+-   👥 **Following Management** - Easily manage and view your GitHub following list
+-   🎨 **Beautiful UI** - Modern, responsive design with dark mode support
+-   🔒 **Secure Authentication** - GitHub OAuth integration
+
+## Tech Stack
+
+-   [Next.js 14](https://nextjs.org/) - React framework
+-   [TypeScript](https://www.typescriptlang.org/) - Type safety
+-   [Tailwind CSS](https://tailwindcss.com/) - Styling
+-   [NextAuth.js](https://next-auth.js.org/) - Authentication
+-   [GitHub API v3](https://docs.github.com/en/rest) - Data source
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+-   Node.js 18.17 or later
+-   A GitHub account
+-   GitHub OAuth App credentials
+
+### Setting up GitHub OAuth App
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click on "OAuth Apps" in the sidebar
+3. Click "New OAuth App"
+4. Fill in the application details:
+    - **Application name**: GitPlay (or your preferred name)
+    - **Homepage URL**: `http://localhost:3000`
+    - **Authorization callback URL**: `http://localhost:3000/api/auth/callback/github`
+5. Click "Register application"
+6. You'll be provided with a Client ID
+7. Click "Generate a new client secret"
+8. Save both the Client ID and Client Secret - you'll need these for the next step
+
+### Setup
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/cedricbahirwe/githubsocial.git
+cd githubsocial
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Create a `.env.local` file in the root directory:
+
+```env
+GITHUB_ID=your_github_client_id        # From GitHub OAuth App
+GITHUB_SECRET=your_github_client_secret # From GitHub OAuth App
+NEXTAUTH_SECRET=your_nextauth_secret    # Any random string (32+ characters)
+NEXTAUTH_URL=http://localhost:3000
+```
+
+4. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The project follows a component-based architecture:
 
-## Learn More
+-   `app/` - Next.js App Router pages and API routes
+-   `components/` - React components
+-   `services/` - API services and utilities
+-   `types/` - TypeScript type definitions
 
-To learn more about Next.js, take a look at the following resources:
+## Features in Detail
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Activity Feed
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+-   Real-time GitHub activity updates
+-   Support for various event types (Push, Star, Fork, etc.)
+-   Infinite scrolling
+-   Beautiful animations
 
-## Deploy on Vercel
+### Contribution Streaks
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+-   Daily contribution tracking
+-   Streak comparison
+-   Visual progress indicators
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Daily Digest
+
+-   Daily activity summary
+-   Top contributor highlights
+-   Network statistics
+
+### Following Management
+
+-   Paginated following list
+-   Quick profile access
+-   User type indicators
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
