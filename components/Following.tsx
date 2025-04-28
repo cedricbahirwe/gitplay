@@ -10,11 +10,14 @@ interface GitHubUser {
 
 interface FollowingProps {
     following: GitHubUser[];
+    hasMore: boolean;
+    loadMore: () => void;
+    loadingMore: boolean;
 }
 
-export default function Following({ following }: FollowingProps) {
+export default function Following({ following, hasMore, loadMore, loadingMore }: FollowingProps) {
     return (
-        <div className="mt-8">
+        <div>
             <h2 className="text-2xl font-bold mb-6 relative">
                 <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 dark:from-indigo-400 dark:via-purple-400 dark:to-blue-400 bg-clip-text text-transparent animate-gradient-x">
                     Following ({following.length})
@@ -65,6 +68,27 @@ export default function Following({ following }: FollowingProps) {
                     </a>
                 ))}
             </div>
+
+            {hasMore && (
+                <div className="mt-8 flex justify-center">
+                    <button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        className="px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 text-white rounded-lg hover:from-indigo-600 hover:via-purple-600 hover:to-blue-600 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loadingMore ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Loading more...
+                            </>
+                        ) : (
+                            <>
+                                Load More Following
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

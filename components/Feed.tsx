@@ -8,7 +8,7 @@ import ContributionStreaks from './ContributionStreaks';
 import DailyDigest from './DailyDigest';
 import Following from './Following';
 
-type TabType = 'feed' | 'streaks' | 'digest';
+type TabType = 'feed' | 'streaks' | 'digest' | 'following';
 
 export default function Feed() {
     const { data: session, status } = useSession({
@@ -26,6 +26,9 @@ export default function Feed() {
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [currentFollowingPage, setCurrentFollowingPage] = useState(1);
+    const [hasMoreFollowing, setHasMoreFollowing] = useState(true);
+    const [loadingMoreFollowing, setLoadingMoreFollowing] = useState(false);
 
     // Initialize GitHub service with memoization
     const githubService = useMemo(() => {
@@ -33,36 +36,80 @@ export default function Feed() {
         return new GitHubService(session.accessToken);
     }, [session?.accessToken]);
 
-    // Fetch data using the GitHub service
-    const fetchData = useCallback(async () => {
+    // Fetch initial following data
+    const fetchInitialFollowing = useCallback(async () => {
         if (!githubService) return;
+        try {
+            const response = await githubService.getFollowingPaginated(1);
+            setFollowing(response.items);
+            setHasMoreFollowing(response.hasNextPage);
+            setCurrentFollowingPage(2);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch following');
+        }
+    }, [githubService]);
+
+    // Fetch events and contributions
+    const fetchEventsAndContributions = useCallback(async () => {
+        if (!githubService || !following.length) return;
 
         try {
-            // Get following users
-            const followingData = await githubService.getFollowing();
-            setFollowing(followingData);
-
-            // Get events and contributions in parallel
             const [eventsData, contributionsData] = await Promise.all([
-                githubService.getMultipleUsersEvents(followingData),
-                githubService.getAllUserContributions(followingData)
+                githubService.getMultipleUsersEvents(following),
+                githubService.getAllUserContributions(following)
             ]);
 
             setEvents(eventsData);
             setContributions(contributionsData);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch events and contributions');
+        }
+    }, [githubService, following]);
+
+    // Load more following
+    const loadMoreFollowing = async () => {
+        if (!githubService || !hasMoreFollowing || loadingMoreFollowing) return;
+
+        setLoadingMoreFollowing(true);
+        try {
+            const response = await githubService.getFollowingPaginated(currentFollowingPage);
+            setFollowing(prev => [...prev, ...response.items]);
+            setHasMoreFollowing(response.hasNextPage);
+            setCurrentFollowingPage(response.nextPage);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load more following');
+        } finally {
+            setLoadingMoreFollowing(false);
+        }
+    };
+
+    // Initial data fetch
+    const fetchData = useCallback(async () => {
+        if (!githubService) return;
+
+        try {
+            await fetchInitialFollowing();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch data');
             console.error('Error fetching data:', err);
         } finally {
             setLoading(false);
         }
-    }, [githubService]);
+    }, [githubService, fetchInitialFollowing]);
 
+    // Effect to fetch initial data
     useEffect(() => {
         if (status === 'authenticated') {
             fetchData();
         }
     }, [status, fetchData]);
+
+    // Effect to fetch events and contributions when following changes
+    useEffect(() => {
+        if (following.length > 0) {
+            fetchEventsAndContributions();
+        }
+    }, [following, fetchEventsAndContributions]);
 
     const loadMore = () => {
         setLoadingMore(true);
@@ -119,10 +166,10 @@ export default function Feed() {
     return (
         <div className="max-w-4xl mx-auto pb-24">
             {/* Tab Navigation */}
-            <div className="sticky top-15 z-40 py-4 mb-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+            <div className="sticky top-[57px] z-40 py-4 mb-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
                 <div className="flex justify-center">
                     <div className="inline-flex rounded-lg border border-gray-100 dark:border-gray-800 p-1 bg-white dark:bg-gray-900 shadow-sm">
-                        {(['feed', 'streaks', 'digest'] as const).map((tab) => (
+                        {(['feed', 'streaks', 'digest', 'following'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => handleTabChange(tab)}
@@ -134,6 +181,7 @@ export default function Feed() {
                                 {tab === 'feed' && '📱 Feed'}
                                 {tab === 'streaks' && '🔥 Streaks'}
                                 {tab === 'digest' && '📊 Daily Digest'}
+                                {tab === 'following' && '👥 Following'}
                             </button>
                         ))}
                     </div>
@@ -163,7 +211,14 @@ export default function Feed() {
                 />
             )}
 
-            <Following following={following} />
+            {activeTab === 'following' && (
+                <Following
+                    following={following}
+                    hasMore={hasMoreFollowing}
+                    loadMore={loadMoreFollowing}
+                    loadingMore={loadingMoreFollowing}
+                />
+            )}
         </div>
     );
 }

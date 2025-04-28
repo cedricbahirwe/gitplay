@@ -37,6 +37,12 @@ interface UserContribution {
 	contributions: ContributionDay[];
 }
 
+interface PaginatedResponse<T> {
+	items: T[];
+	hasNextPage: boolean;
+	nextPage: number;
+}
+
 export class GitHubService {
 	private accessToken: string;
 	private baseUrl = "https://api.github.com";
@@ -45,48 +51,91 @@ export class GitHubService {
 		this.accessToken = accessToken;
 	}
 
-	private async fetch<T>(endpoint: string): Promise<T> {
-		try {
-			const response = await fetch(`${this.baseUrl}${endpoint}`, {
-				headers: {
-					Authorization: `token ${this.accessToken}`,
-					Accept: "application/vnd.github.v3+json",
-				},
-			});
+	private async fetch(endpoint: string): Promise<Response> {
+		const response = await fetch(`${this.baseUrl}${endpoint}`, {
+			headers: {
+				Authorization: `token ${this.accessToken}`,
+				Accept: "application/vnd.github.v3+json",
+			},
+		});
 
-			if (!response.ok) {
-				const errorBody = await response.text();
-				let errorMessage = `GitHub API error: ${response.status}`;
+		if (!response.ok) {
+			const errorBody = await response.text();
+			let errorMessage = `GitHub API error: ${response.status}`;
 
-				if (response.status === 403) {
-					errorMessage =
-						"GitHub API rate limit exceeded or insufficient permissions. Please try again later.";
-				} else if (response.status === 401) {
-					errorMessage =
-						"GitHub authentication failed. Please sign out and sign in again.";
-				}
-
-				throw new Error(`${errorMessage}\n${errorBody}`);
+			if (response.status === 403) {
+				errorMessage =
+					"GitHub API rate limit exceeded or insufficient permissions. Please try again later.";
+			} else if (response.status === 401) {
+				errorMessage =
+					"GitHub authentication failed. Please sign out and sign in again.";
 			}
 
-			return response.json();
-		} catch (error) {
-			if (error instanceof Error) {
-				throw error;
-			}
-			throw new Error(
-				"Failed to connect to GitHub API. Please check your internet connection."
-			);
+			throw new Error(`${errorMessage}\n${errorBody}`);
 		}
+
+		return response;
+	}
+
+	private parseLinkHeader(linkHeader: string | null): { next?: string } {
+		if (!linkHeader) return {};
+
+		const links = linkHeader.split(",");
+		const parsedLinks: { [key: string]: string } = {};
+
+		links.forEach((link) => {
+			const [url, rel] = link.split(";");
+			const urlMatch = url.match(/<(.+?)>/);
+			const relMatch = rel.match(/rel="(.+?)"/);
+
+			if (urlMatch && relMatch) {
+				parsedLinks[relMatch[1]] = urlMatch[1];
+			}
+		});
+
+		return {
+			next: parsedLinks["next"],
+		};
+	}
+
+	async getFollowingPaginated(
+		page: number = 1,
+		perPage: number = 20
+	): Promise<PaginatedResponse<GitHubUser>> {
+		const response = await this.fetch(
+			`/user/following?page=${page}&per_page=${perPage}`
+		);
+		const data = (await response.json()) as GitHubUser[];
+		const linkHeader = this.parseLinkHeader(response.headers.get("Link"));
+
+		return {
+			items: data,
+			hasNextPage: !!linkHeader.next,
+			nextPage: page + 1,
+		};
 	}
 
 	async getFollowing(): Promise<GitHubUser[]> {
-		return this.fetch<GitHubUser[]>("/user/following");
+		const allFollowing: GitHubUser[] = [];
+		let currentPage = 1;
+
+		while (true) {
+			const response = await this.getFollowingPaginated(currentPage, 100);
+			allFollowing.push(...response.items);
+
+			if (!response.hasNextPage) {
+				break;
+			}
+			currentPage = response.nextPage;
+		}
+
+		return allFollowing;
 	}
 
 	async getUserEvents(user: GitHubUser): Promise<GitHubEvent[]> {
 		const pathName = user.type === "User" ? "users" : "orgs";
-		return this.fetch<GitHubEvent[]>(`/${pathName}/${user.login}/events`);
+		const response = await this.fetch(`/${pathName}/${user.login}/events`);
+		return response.json();
 	}
 
 	async getMultipleUsersEvents(users: GitHubUser[]): Promise<GitHubEvent[]> {
@@ -209,4 +258,5 @@ export type {
 	GitHubUser,
 	ContributionDay,
 	UserContribution,
+	PaginatedResponse,
 };
