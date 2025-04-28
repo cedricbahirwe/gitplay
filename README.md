@@ -1,8 +1,6 @@
-# GitHub Social
+# GitPlay
 
 A modern social dashboard for GitHub that helps you stay connected with your network's development activities. Built with Next.js, TypeScript, and Tailwind CSS.
-
-![GitHub Social Preview](.github/preview.png)
 
 ## Features
 
@@ -35,7 +33,7 @@ A modern social dashboard for GitHub that helps you stay connected with your net
 2. Click on "OAuth Apps" in the sidebar
 3. Click "New OAuth App"
 4. Fill in the application details:
-    - **Application name**: GitHub Social (or your preferred name)
+    - **Application name**: GitPlay (or your preferred name)
     - **Homepage URL**: `http://localhost:3000`
     - **Authorization callback URL**: `http://localhost:3000/api/auth/callback/github`
 5. Click "Register application"
